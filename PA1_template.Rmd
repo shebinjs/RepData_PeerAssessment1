@@ -1,25 +1,130 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
 output: 
-  html_document:
+  html_document: 
     keep_md: true
 ---
 
+```{r setoptions, echo=FALSE}
+options(scipen=999)
+```
 
 ## Loading and preprocessing the data
 
+##### Reading the data into the 'activitydata' variable and showing the dimensions.
 
+```{r echo=TRUE}
+activityData <- read.csv(unz("activity.zip", filename = "activity.csv"))
+str(activityData)
+```
+
+##### Processing data to give proper date format
+```{r echo=TRUE}
+activityData$date <- as.Date(activityData$date)
+str(activityData)
+```
 
 ## What is mean total number of steps taken per day?
 
+##### Plotting the histogram of total steps taken each day
+```{r echo=TRUE}
+totStepsEachDay <- aggregate(x = activityData$steps, by = list(activityData$date), FUN = sum, na.rm = TRUE)
+names(totStepsEachDay) <- c("Date", "Total.Steps")
+hist(x = totStepsEachDay$Total.Steps, main = "Histogram of Total steps each day", xlab = "Total steps each day", col = "chocolate1")
 
+meanSteps <- mean(totStepsEachDay$Total.Steps)
+medianSteps <- median(totStepsEachDay$Total.Steps)
+```
+
+###### Mean of the total number of steps taken each day: `r meanSteps`
+###### Median of the total number of steps taken each day: `r medianSteps`
 
 ## What is the average daily activity pattern?
+##### Calculating the average number of steps taken based on the 5 min interval, across all days
+```{r echo=TRUE}
+avgStepsInInterval <- aggregate(x = activityData$steps, by = list(activityData$interval), FUN = mean, na.rm = TRUE)
+names(avgStepsInInterval) <- c("Interval", "Average.Steps")
+```
 
+##### Plotting Activity Daily Pattern
+```{r echo=TRUE}
+plot(x = avgStepsInInterval$Interval, y = avgStepsInInterval$Average.Steps, type = "l", xlab = "5-minute Interval", ylab = "Average number of steps", main = "Average Daily Activity Pattern", col = "chocolate1")
+```
 
+##### Finding the 5-minute interval with maximum average steps taken across all days
+```{r echo=TRUE}
+reqdInterval <- avgStepsInInterval[avgStepsInInterval$Average.Steps == max(avgStepsInInterval$Average.Steps),]$Interval
+```
+
+###### The 5-minute interval, on average across all the days in the dataset, with the maximum number of steps: `r reqdInterval` - `r reqdInterval+5`
 
 ## Imputing missing values
 
+##### Calculating the total number of missing values in the dataset
+```{r echo=TRUE}
+countNA <- sum(!complete.cases(activityData))
+```
 
+Number of rows with missing values: `r countNA`
+ 
+##### Filling missing values with the mean for the respective 5-minute interval
+```{r echo=TRUE}
+activityDataSansNA <- activityData
+for (i in 1:nrow(activityDataSansNA)){
+    if(is.na(activityDataSansNA[i, "steps"])){
+        activityDataSansNA[i, "steps"] = 
+            ceiling(avgStepsInInterval[avgStepsInInterval$Interval ==
+                activityDataSansNA[i,"interval"],]$Average.Steps)
+    }
+}
+```
+
+Printing dimensions of the new dataset
+```{r echo=TRUE}
+str(activityDataSansNA)
+```
+
+##### Plotting the histogram of total number of steps taken each day after filling NA's
+```{r echo=TRUE}
+totStepsEachDaySansNA <- aggregate(x = activityDataSansNA$steps, by = list(activityDataSansNA$date), FUN = sum, na.rm = TRUE)
+names(totStepsEachDaySansNA) <- c("Date", "Total.Steps")
+hist(x = totStepsEachDaySansNA$Total.Steps, main = "Histogram of Total steps each day", xlab = "Total steps each day", col = "chocolate1")
+meanSansNA <- mean(totStepsEachDaySansNA$Total.Steps)
+medianSansNA <- median(totStepsEachDaySansNA$Total.Steps)
+```
+
+###### New mean of the total number of steps taken each day: `r meanSansNA`
+###### New median of the total number of steps taken each day: `r medianSansNA`
+
+###### Mean and median values have increased after filling the missing values.
+
+```{r echo=TRUE}
+totStepsAllDays <- sum(totStepsEachDay$Total.Steps, na.rm = TRUE)
+newTotStepsAllDays <- sum(totStepsEachDaySansNA$Total.Steps)
+```
+###### Increase in the total number of steps after imputing: `r newTotStepsAllDays - totStepsAllDays`
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+###### Adding variables to identify weekday and weekends
+```{r echo=TRUE}
+activityDataSansNA$day <- weekdays(activityDataSansNA$date,abbreviate = TRUE)
+activityDataSansNA$daytype[(activityDataSansNA$day == "Sun" | activityDataSansNA$day == "Sat")] <- "weekend"
+activityDataSansNA$daytype[!(activityDataSansNA$day == "Sun" | activityDataSansNA$day == "Sat")] <- "weekday"
+activityDataSansNA$daytype <- as.factor(activityDataSansNA$daytype)
+```
+
+Printing dimensions of the new dataset
+```{r echo=TRUE}
+str(activityDataSansNA)
+```
+
+##### Plotting Activity Pattern across Weekends and Weekdays
+
+```{r echo=TRUE}
+```{r echo=TRUE}
+avgStepsInIntervalDayType <- aggregate(steps ~ interval+daytype, activityDataSansNA, mean)
+library(ggplot2)
+qplot(interval, steps, data = avgStepsInIntervalDayType, geom = c("line"), xlab = "Interval", ylab = "Average No of Steps", col = "chocolate1", main="") + facet_wrap(~daytype, ncol = 1) + guides(colour=FALSE)
+
+```
